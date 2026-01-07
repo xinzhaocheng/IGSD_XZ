@@ -1304,12 +1304,4 @@ make_traded_gas_plots <- function(
     ggplot2::coord_cartesian(clip = "off")
   
   
-  invisible(list(nest = p1, 
-                 traded_pipe = p_pipe, 
-                 rus_exported_lng = p_rus_lng, 
-                 rus_exported_pipe = p_rus_pip,
-                 rus_supply_ERU = p_rus_supply_EUR,
-                 rus_supply_default = p_rus_supply_default,
-                 rus_export = p_rus_exp
-                 ))
 }

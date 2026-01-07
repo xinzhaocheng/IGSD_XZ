@@ -322,7 +322,7 @@ source(file.path("src", dir_src, "traded_gas_plots.R"))
 
 ## Make IMAC plots (https://docs.google.com/presentation/d/1ZHOh4nqpWO2LAGsO8uB0l0sbBHiVdflv/edit?slide=id.p1#slide=id.p1)
 
-dir_scenarios <- "D:/IGSD/runs/To_xinzhao_runs"
+# dir_scenarios <- "D:/IGSD/runs/To_xinzhao_runs"
 
 # Identify all queryout_*_IAMC.csv files in the runs directory
 files <- list.files(
@@ -360,6 +360,8 @@ traded_plots <- make_traded_gas_plots(
   scen_labs       = scen_labs
 )
 
+
+## Make 
 
 ## Make energy mix and line plots ------------
 
