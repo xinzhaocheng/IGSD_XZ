@@ -351,7 +351,7 @@ var_need  <- "CH4 emissions by tech (excluding resource production)"
 tech_need <- c("imported LNG", "imported PAC pipeline gas", "imported RUS pipeline gas")
 
 # Source plot function and run
-source(file.path("src", "gasTrade_R", "traded_gas_plots.R"))
+source(file.path("src", "gasTrade_R", "traded_gas_plots_IAMC.R"))
 
 traded_plots <- make_traded_gas_plots(
   gas_trade_files = files,
