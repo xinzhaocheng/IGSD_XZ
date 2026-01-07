@@ -320,9 +320,9 @@ scen_labs <- setNames(
 
 source(file.path("src", dir_src, "traded_gas_plots.R"))
 
-setwd("D:/IGSD")
-
 ## Make IMAC plots (https://docs.google.com/presentation/d/1ZHOh4nqpWO2LAGsO8uB0l0sbBHiVdflv/edit?slide=id.p1#slide=id.p1)
+
+dir_scenarios <- "D:/IGSD/runs/To_xinzhao_runs"
 
 # Identify all queryout_*_IAMC.csv files in the runs directory
 files <- list.files(
@@ -351,7 +351,7 @@ var_need  <- "CH4 emissions by tech (excluding resource production)"
 tech_need <- c("imported LNG", "imported PAC pipeline gas", "imported RUS pipeline gas")
 
 # Source plot function and run
-source(file.path("src", dir_src, "traded_gas_plots.R"))
+source(file.path("src", "gasTrade_R", "traded_gas_plots.R"))
 
 traded_plots <- make_traded_gas_plots(
   gas_trade_files = files,
@@ -370,7 +370,6 @@ rmarkdown::render(file.path("src", dir_src, "overview.R"), output_file = file.pa
 
 # ### Just make the figures
 # source(file.path("src", dir_src, "overview.R"))
-
 
 
 
