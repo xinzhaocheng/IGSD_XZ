@@ -322,32 +322,6 @@ source(file.path("src", dir_src, "traded_gas_plots.R"))
 
 setwd("D:/IGSD")
 
-# Load libraries and settings
-library(tidyverse)
-library(ggplot2)
-
-# Make the date label for use in output file name
-date_label <- format(Sys.Date(), "%Y%m%d")
-date_label <- gsub("^20", "", date_label)
-version_letter <- ""
-
-# set address manually
-dir_src      <- "To_xinzhao"     # src/<dir_src>/traded_gas_plots.R
-project_name <- "To_xinzhao"
-
-# Define working directories
-# Remove existing directories if they exist
-# You can change the names of these directories as needed
-dir_output  <- file.path("output",  paste0(project_name, "_output"),  "/")
-dir_data    <- file.path("data",    paste0(project_name, "_data"),    "/")
-dir_runs    <- file.path("runs",    paste0(project_name, "_runs"),    "/")
-dir_figures <- file.path("figures", paste0(project_name, "_figures"), "/")
-
-dir.create(dir_output,  showWarnings = FALSE, recursive = TRUE)
-dir.create(dir_data,    showWarnings = FALSE, recursive = TRUE)
-dir.create(dir_runs,    showWarnings = FALSE, recursive = TRUE)
-dir.create(dir_figures, showWarnings = FALSE, recursive = TRUE)
-
 ## Make IMAC plots (https://docs.google.com/presentation/d/1ZHOh4nqpWO2LAGsO8uB0l0sbBHiVdflv/edit?slide=id.p1#slide=id.p1)
 
 # Identify all queryout_*_IAMC.csv files in the runs directory
