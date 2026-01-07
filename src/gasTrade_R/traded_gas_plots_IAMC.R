@@ -76,7 +76,6 @@ make_traded_gas_plots <- function(
   ########################## Russia exported gas ######################### ##############
   #######################################################################################
   
-  # ---------------- 基础设置与列名 ----------------
   get_first_col <- function(df, base) {
     cand <- names(df)[stringr::str_detect(names(df), paste0("^", base, "(\\.\\.\\.[0-9]+)?$"))]
     if (length(cand) == 0) base else cand[1]
@@ -87,17 +86,13 @@ make_traded_gas_plots <- function(
   col_sector   <- get_first_col(df_all, "sector")
   col_source   <- "Source"
   
-  # 只用这四个年份
   yrs_keep <- c("2021","2025","2035","2060")
   yrs_use  <- intersect(yrs_keep, names(df_all))
   
-  # 需要的两个部门
   sectors_need <- c("exported LNG", "exported pipeline gas")
-  
-  # 情景顺序
   sources_need <- c("NetZero_default", "NetZero_core", "NetZero_CH4_CN", "NetZero_CH4_group")
   
-  # ---------------- 数据整理 ----------------
+  # ---------------- data prep ----------------
   plot_df_rus_exp <- df_all %>%
     dplyr::filter(
       trimws(.data[[col_variable]]) == "exported gas by tech",
@@ -120,18 +115,16 @@ make_traded_gas_plots <- function(
       sector = factor(trimws(sector), levels = sectors_need),
       value  = as.numeric(value)
     ) %>%
-    # —— 关键：2021 只保留第一个情景，其余年份保留全部情景
     dplyr::filter(
       (year == "2021" & Source == sources_need[1]) | (year != "2021")
     )
   
-  # ---------------- 位置排布（同画布、顶部副轴为年份） ----------------
-  # 情景数与组内间距（保持不变）
+  # ---------------- position plots ----------------
   n_scen <- length(sources_need)
-  eps    <- 0.06      # 同一年不同情景横向偏移（不变）
-  year_gap <- 0.3    # 基础“标准”段长（不变，用于构造非等距中心）
+  eps    <- 0.06      
+  year_gap <- 0.3   
   
-  # —— 非等距年份中心：2021→2025 = year_gap/2，其余段 = year_gap
+  # 2021→2025 = year_gap/2，others = year_gap
   centers <- numeric(length(yrs_keep))
   centers[1] <- year_gap
   for (i in 2:length(yrs_keep)) {
@@ -140,48 +133,42 @@ make_traded_gas_plots <- function(
   }
   names(centers) <- yrs_keep
   
-  # 计算场景索引（用于簇内偏移）
+）
   scen_index <- match(plot_df_rus_exp$Source, sources_need)
   
-  # 生成每根柱子的 x 坐标：
-  # - 每个年份簇以 centers[year] 为簇中心
-  # - 2021 只有一根柱 => 不偏移（置中）
-  # - 其他年份为多场景 => 按 eps 做左右紧贴
   plot_df_rus_exp2 <- plot_df_rus_exp %>%
     dplyr::mutate(
       grp        = as.character(year),
       grp_center = centers[grp],
       x = grp_center + ifelse(
         year == "2021",
-        0,  # 2021 单柱置中
+        0,  # 2021 one pole
         (scen_index - mean(seq_len(n_scen))) * eps
       )
     )
   
-  # x 轴下方刻度与标签：2021 不显示情景名，其余年份显示情景名
+  # X-axis labels: hide scenario name for 2021, show for other years
   x_ticks  <- plot_df_rus_exp2 %>%
     dplyr::distinct(x, grp, year, Source) %>%
     dplyr::arrange(grp, x)
   x_breaks <- x_ticks$x
   x_labels <- ifelse(x_ticks$year == "2021", "", as.character(x_ticks$Source))
   
-  # 顶部副轴用同一组非等距中心（与柱子簇中心一致）
   sec_centers <- as.numeric(centers)
   
-  # —— 在你的 scale_x_continuous() 中这样写（其余保持不变）——
   scale_x_continuous(
     breaks = x_breaks,
     labels = x_labels,
     expand = ggplot2::expansion(mult = c(0.01, 0.02)),
     sec.axis = ggplot2::dup_axis(
       name   = NULL,
-      breaks = sec_centers,  # 非等距顶部刻度
+      breaks = sec_centers,  
       labels = yrs_keep
     )
   )
   
   
-  # ---------------- 配色与作图 ----------------
+  # ---------------- color and poltting ----------------
   pal_sec <- c("exported LNG" = "#4DB6AC", "exported pipeline gas" = "#fc8d62")
   
   p_rus_exp <- ggplot2::ggplot(plot_df_rus_exp2, ggplot2::aes(x = x, y = value, fill = sector)) +
@@ -229,7 +216,7 @@ make_traded_gas_plots <- function(
     library(tidyverse); library(ggplot2); library(grid); library(patchwork); library(cowplot)
   })
   
-  # ----------------------------- 分组函数 -----------------------------
+  # ----------------------------- grouping -----------------------------
   group_region7 <- function(x) {
     europe <- c("EU-15","EU-12","Europe_Non_EU","European Free Trade Association","Ukraine","EFTA","Europe")
     dplyr::case_when(
@@ -256,7 +243,6 @@ make_traded_gas_plots <- function(
   
   grp_levels <- c("Europe","China","Japan","Korea","India","Central Asia","ROW")
   
-  # （未改变行为；尽管此段当前未在下文使用，保留以保证与原脚本等价）
   group_lng_source <- function(tech) {
     base <- sub("\\s*traded\\s*LNG\\s*$", "", trimws(tech))
     if (base %in% c("Australia_NZ", "Australia")) return("Australia")
@@ -271,7 +257,7 @@ make_traded_gas_plots <- function(
     return("Other low-methane producers")
   }
   
-  # ----------------------------- 配色与辅助 -----------------------------
+  # ----------------------------- color -----------------------------
   pal_region_global <- c(
     "Europe"       = "#1f77b4",
     "China"        = "#d62728",
@@ -284,19 +270,16 @@ make_traded_gas_plots <- function(
   
   present_breaks <- function(x) intersect(grp_levels, unique(as.character(x)))
   
-  # ----------------------------- 列名定位（保持与原逻辑一致） -----------------------------
   col_region     <- get_first_col(df_all, "region")
   col_technology <- get_first_col(df_all, "technology")
-  
-  # ----------------------------- 基础设置（保持原值） -----------------------------
+-
   yrs_keep    <- c("2021","2025","2035","2060")
   yrs_use     <- intersect(yrs_keep, names(df_all))
   scen_levels <- c("NetZero_default", "NetZero_core", "NetZero_CH4_CN", "NetZero_CH4_group")
   
-  eps      <- 0.06  # 同一年不同情景横向偏移
-  year_gap <- 0.3   # 基础间距
+  eps      <- 0.06  
+  year_gap <- 0.3   
   
-  # 顶部副轴非等距间隔（保持原算法）
   centers <- numeric(length(yrs_keep))
   centers[1] <- year_gap
   for (i in 2:length(yrs_keep)) {
@@ -306,7 +289,7 @@ make_traded_gas_plots <- function(
   names(centers) <- yrs_keep
   sec_centers <- as.numeric(centers)
   
-  # ----------------------------- 数据准备通用函数 -----------------------------
+  # ----------------------------- data and function prep -----------------------------
   prep_rus_data <- function(tech_string, group_fun) {
     df <- df_all %>%
       dplyr::filter(
@@ -333,8 +316,7 @@ make_traded_gas_plots <- function(
         x = grp_center + ifelse(year == "2021", 0,
                                 (scen_index - mean(seq_len(length(scen_levels)))) * eps)
       )
-    
-    # x 轴刻度与标签（下方情景名；2021 空）
+  
     x_ticks  <- df2 %>% dplyr::distinct(x, year, Source) %>% dplyr::arrange(year, x)
     x_breaks <- x_ticks$x
     x_labels <- ifelse(x_ticks$year == "2021", "", as.character(x_ticks$Source))
@@ -342,7 +324,6 @@ make_traded_gas_plots <- function(
     list(df = df, df2 = df2, x_breaks = x_breaks, x_labels = x_labels)
   }
   
-  # ----------------------------- 基础绘图通用函数 -----------------------------
   base_rus_plot <- function(df2, legend_name, x_breaks, x_labels,
                             show_top_years = TRUE, angle_bottom = 45,
                             add_margin = ggplot2::margin(t = 18, r = 35, b = 12, l = 8, unit = "pt")) {
@@ -379,7 +360,7 @@ make_traded_gas_plots <- function(
     p
   }
   
-  # 右侧灰条工具（保持行为与阈值）
+  # strip on the right
   add_right_strip <- function(p, label, w_bar_data = 0.05) {
     gb <- ggplot2::ggplot_build(p)
     panel_params <- gb$layout$panel_params[[1]]
@@ -439,13 +420,13 @@ make_traded_gas_plots <- function(
     plot = p_rus_pip, width = 6.2, height = 4.8, dpi = 300, bg = "white"
   )
   
-  # ================= Russia traded LNG & pipeline（上下两排） ==================
-  # 上排（不显示下方情景名；显示顶部年份）
+  # ================= Russia traded LNG & pipeline ==================
+  # plot on the top
   p_rus_lng_u <- base_rus_plot(
     df2 = lng_list$df2,
     legend_name = "Region",
     x_breaks = lng_list$x_breaks,
-    x_labels = rep("", length(lng_list$x_breaks)),  # 上排不显示情景名
+    x_labels = rep("", length(lng_list$x_breaks)), 
     show_top_years = TRUE,
     angle_bottom = 0
   )
@@ -453,7 +434,7 @@ make_traded_gas_plots <- function(
     ggplot2::theme(axis.ticks.x = ggplot2::element_blank(),
                    plot.title   = ggplot2::element_blank())
   
-  # 下排（显示情景名；不显示顶部年份）
+  # plot on the bottom
   p_rus_pip_u <- base_rus_plot(
     df2 = pip_list$df2,
     legend_name = "Region",
@@ -464,12 +445,12 @@ make_traded_gas_plots <- function(
   )
   p_rus_pip_u <- p_rus_pip_u + ggplot2::theme(plot.title = ggplot2::element_blank())
   
-  # 加右侧灰条（宽度保持与柱宽一致）
+  # strip on the right
   w_bar <- 0.05
   p_rus_lng_u_strip <- add_right_strip(p_rus_lng_u,  "LNG",      w_bar)
   p_rus_pip_u_strip <- add_right_strip(p_rus_pip_u,  "Pipeline", w_bar)
   
-  # 合并与标题（保持原布局与标题）
+  # combine
   p_combined <- (p_rus_lng_u_strip / p_rus_pip_u_strip) +
     patchwork::plot_layout(heights = c(1, 1)) &
     ggplot2::theme(legend.position = "right")
@@ -491,15 +472,12 @@ make_traded_gas_plots <- function(
   ########################## Russia natural gas production (slide 1 right) ##############
   ######################################################################################
 
-  # ========= 固定情景 & 年份 =========
   scen_levels <- c("NetZero_default", "NetZero_core", "NetZero_CH4_CN", "NetZero_CH4_group")
   first_scen  <- scen_levels[1]
   yrs_use     <- if (exists("yrs_use")) yrs_use else yrs_keep   # 保持与上文一致
   
-  # ========= 小工具：清洗与布局 =========
   .to_num <- function(x) suppressWarnings(as.numeric(x))
-  
-  # 计算年份中心（非等距），保持原算法与数值
+
   .compute_centers <- function(yrs_keep, year_gap = 0.30) {
     centers <- numeric(length(yrs_keep))
     centers[1] <- year_gap
@@ -513,14 +491,13 @@ make_traded_gas_plots <- function(
     centers
   }
   
-  # 生成 x 坐标布局：2021 只放首个情景，其余年份放四个情景；与原逻辑完全一致
   .build_layout <- function(yrs_keep, scen_levels, first_scen, eps) {
     year_to_scen <- function(y) if (y == "2021") first_scen else scen_levels
     centers <- .compute_centers(yrs_keep)
     purrr::map_dfr(yrs_keep, function(y) {
       scs  <- year_to_scen(y)
       k    <- length(scs)
-      offs <- (seq_len(k) - (k + 1) / 2) * eps   # 以年份中心对称展开
+      offs <- (seq_len(k) - (k + 1) / 2) * eps   
       tibble::tibble(
         year   = factor(y, levels = yrs_keep),
         Source = factor(scs, levels = scen_levels),
@@ -530,7 +507,7 @@ make_traded_gas_plots <- function(
       dplyr::mutate(year = factor(year, levels = yrs_keep))
   }
   
-  # ========= A) Domestic（保持筛选与命名不变）=========
+  # ========= A Domestic =========
   df_domestic <- df_all %>%
     dplyr::filter(
       Variable == "regional natural gas by tech (nest)",
@@ -551,7 +528,7 @@ make_traded_gas_plots <- function(
                    levels = c("Domestic natural gas","Exported LNG","Exported pipeline gas"))
     )
   
-  # ========= B) Exported（保持筛选、映射与顺序不变）=========
+  # ========= B Exported =========
   df_export <- df_all %>%
     dplyr::filter(
       Variable == "exported gas by tech",
@@ -575,7 +552,7 @@ make_traded_gas_plots <- function(
     ) %>%
     dplyr::transmute(Source, year, value, cat)
   
-  # ========= 合并汇总（保持与原逻辑一致）=========
+  # ========= combine =========
   df_both <- dplyr::bind_rows(df_domestic, df_export) %>%
     dplyr::filter(!is.na(value)) %>%
     dplyr::group_by(Source, year, cat) %>%
@@ -585,16 +562,15 @@ make_traded_gas_plots <- function(
       year   = factor(year, levels = yrs_keep)
     )
   
-  # ========= 2021 仅保留首个情景 =========
+  # ========= 2021 only the first one =========
   df_sum <- dplyr::bind_rows(
     df_both %>% dplyr::filter(year == "2021", Source == first_scen),
     df_both %>% dplyr::filter(year != "2021")
   )
-  
-  # ========= 坐标与刻度（完全复现原值）=========
-  eps      <- 0.05   # 同一年内相邻情景柱间距
-  year_gap <- 0.30   # 年份组间距（2021->2025 稍小）
-  bar_w    <- 0.04   # 柱宽
+
+  eps      <- 0.05   
+  year_gap <- 0.30   
+  bar_w    <- 0.04   
   
   centers     <- .compute_centers(yrs_keep, year_gap)
   layout_df   <- .build_layout(yrs_keep, scen_levels, first_scen, eps)
@@ -606,14 +582,11 @@ make_traded_gas_plots <- function(
   x_labels <- ifelse(as.character(layout_df$year) == "2021", "",
                      as.character(layout_df$Source))
   
-  # ========= 颜色（保持不变）=========
   pal_cat <- c(
     "Domestic natural gas"   = "#1f77b4",
     "Exported LNG"           = "#F38400",
     "Exported pipeline gas"  = "#2ca02c"
   )
-  
-  # ========= 作图（保持所有主题、边距、角度与标题一致）=========
   p1 <- ggplot(df_plot, aes(x = x, y = value, fill = cat)) +
     geom_col(width = bar_w, position = "stack") +
     scale_fill_manual(values = pal_cat, name = "Category") +
@@ -636,8 +609,7 @@ make_traded_gas_plots <- function(
       plot.margin        = margin(t = 18, r = 30, b = 12, l = 10, unit = "pt")
     ) +
     coord_cartesian(clip = "off")
-  
-  # ========= 导出（文件名与尺寸完全相同）=========
+
   ggplot2::ggsave(
     file.path(output_dir, "IAMC_RUS_domestic_plus_exported.png"),
     plot = p1, width = 7.6, height = 4.8, bg = "white", dpi = 300
@@ -648,14 +620,14 @@ make_traded_gas_plots <- function(
   ########################## China traded LNG and pipeline (slide 8) ###################
   ######################################################################################
 
-  # ==== 固定堆叠与图例顺序（保持不变） ====
+
   stack_order <- c("Australia",
                    "Middle East",
                    "Other low-methane producers",
                    "Russia",
                    "Other high-methane producers")
   
-  # 分组函数（保持不变）
+  # grouping
   group_lng_source <- function(tech) {
     base <- sub("\\s*traded\\s*LNG\\s*$", "", trimws(tech))
     if (base %in% c("Australia_NZ","Australia")) return("Australia")
@@ -672,7 +644,7 @@ make_traded_gas_plots <- function(
     return(base)
   }
   
-  # 颜色（保持不变）
+  # color
   pal_group <- c(
     "Australia" = "#222222",
     "Middle East" = "#F3C300",
@@ -680,17 +652,13 @@ make_traded_gas_plots <- function(
     "Other high-methane producers" = "#9E9E9E",
     "Other low-methane producers"  = "#C7C7C7"
   )
-  
-  # Facet 用的 6 年（仅保留以保证等价；本段不直接绘制 facet 图）
   yrs_keep_6 <- c("2021","2025","2030","2035","2050","2060")
   yrs_use_6  <- intersect(yrs_keep_6, names(df_all))
   
-  # 情景顺序（如果上方已有全局定义就沿用；否则回退到默认）
   if (!exists("scen_levels")) {
     scen_levels <- c("NetZero_default", "NetZero_core", "NetZero_CH4_CN", "NetZero_CH4_group")
   }
   
-  # ================= 工具函数（复用坐标/间距计算；不改结果） =================
   .to_num <- function(x) suppressWarnings(as.numeric(x))
   
   compute_centers <- function(yrs_keep, year_gap = 0.35) {
@@ -722,7 +690,6 @@ make_traded_gas_plots <- function(
     )
   }
   
-  # 右侧窄灰条（与俄罗斯段一致；不改视觉宽度）
   add_right_strip <- function(p, label, w_bar_data = 0.05) {
     gb <- ggplot2::ggplot_build(p)
     panel_params <- gb$layout$panel_params[[1]]
@@ -754,7 +721,6 @@ make_traded_gas_plots <- function(
       )
   }
   
-  # ================= LNG：数据准备（按分组汇总；保持堆叠顺序/legend 顺序） =================
   plot_df_lng_grouped <- df_all %>%
     dplyr::filter(
       Variable == "traded gas by tech",
@@ -773,7 +739,6 @@ make_traded_gas_plots <- function(
     dplyr::group_by(Source, year, group) %>%
     dplyr::summarise(value = sum(value, na.rm = TRUE), .groups = "drop")
   
-  # 单画布排布参数（与原值一致）
   eps_lng      <- 0.06
   year_gap_lng <- 0.35
   centers2     <- compute_centers(yrs_keep, year_gap_lng)
@@ -827,7 +792,6 @@ make_traded_gas_plots <- function(
   
   ################### Traded pipeline - China ##################################
   
-  # 1) 指定堆叠顺序与颜色（保持不变）
   stack_order_pipe <- c("Russia", "Central Asia", "Southeast Asia")
   pal_group_pipe <- c(
     "Russia"        = "#F38400",
@@ -835,12 +799,10 @@ make_traded_gas_plots <- function(
     "Southeast Asia"= "#CC79A7"
   )
   
-  # 2) 提取 pipeline 来源名（保持不变）
   extract_region_from_pipe <- function(tech) {
     gsub("\\s*traded\\s*pipeline(\\s*gas)?\\s*$", "", trimws(tech), ignore.case = TRUE)
   }
   
-  # 3) 数据整理（仅三类）
   plot_df_pipe_grouped <- df_all %>%
     dplyr::filter(
       Variable == "traded gas by tech",
@@ -860,7 +822,6 @@ make_traded_gas_plots <- function(
     dplyr::summarise(value = sum(value, na.rm = TRUE), .groups = "drop") %>%
     dplyr::mutate(group = factor(group0, levels = stack_order_pipe))
   
-  # 4) 排布参数（与 LNG 一致）
   eps_pipe      <- 0.06
   year_gap_pipe <- 0.35
   centers_pipe  <- compute_centers(yrs_keep, year_gap_pipe)
@@ -911,9 +872,8 @@ make_traded_gas_plots <- function(
     plot = p_pipe_grouped, width = 6.2, height = 4.8, bg = "white", dpi = 300
   )
   
-  #################################### 合并 ##################################
+  #################################### combine ##################################
   
-  # 统一 legend（并集，按既定顺序；与原逻辑等价）
   stack_order_lng  <- stack_order
   stack_order_pipe <- c("Russia", "Central Asia", "Southeast Asia")
   ordered_union    <- c(stack_order_lng, setdiff(stack_order_pipe, stack_order_lng))
@@ -939,7 +899,7 @@ make_traded_gas_plots <- function(
   }
   pal_legend <- pal_all[legend_breaks]
   
-  # 上排 LNG（不显示情景名；顶端显示年份；右侧多留白给灰条）
+  # LNG
   p_lng_u <- ggplot2::ggplot(
     lng_pos$df2, ggplot2::aes(x = x, y = value, fill = group)
   ) +
@@ -965,7 +925,7 @@ make_traded_gas_plots <- function(
     ) +
     ggplot2::coord_cartesian(clip = "off")
   
-  # 下排 PIPE（显示情景名；不显示顶端年份）
+  # PIPElINE
   p_pipe_u <- ggplot2::ggplot(
     pipe_pos$df2, ggplot2::aes(x = x, y = value, fill = group)
   ) +
@@ -988,11 +948,9 @@ make_traded_gas_plots <- function(
     ) +
     ggplot2::coord_cartesian(clip = "off")
   
-  # 右侧灰条（宽度与柱宽一致 0.05）
   p_lng_u_strip  <- add_right_strip(p_lng_u,  "LNG",      w_bar_data = 0.05)
   p_pipe_u_strip <- add_right_strip(p_pipe_u, "Pipeline", w_bar_data = 0.05)
   
-  # 合并
   library(patchwork)
   p_combined_aligned <- (p_lng_u_strip / p_pipe_u_strip) +
     patchwork::plot_layout(heights = c(1, 1)) +
@@ -1016,14 +974,12 @@ make_traded_gas_plots <- function(
   scen_levels <- c("NetZero_default", "NetZero_core", "NetZero_CH4_CN", "NetZero_CH4_group")
   scen_labs   <- scen_levels
   
-  # ---------- 固定堆叠与图例顺序（保持不变） ----------
   stack_order <- c("Australia",
                    "Middle East",
                    "Other low-methane producers",
                    "Russia",
                    "Other high-methane producers")
   
-  # 分组函数（保持不变）
   group_lng_source <- function(tech) {
     base <- sub("\\s*traded\\s*LNG\\s*$", "", trimws(tech))
     if (base %in% c("Australia_NZ","Australia")) return("Australia")
@@ -1040,7 +996,6 @@ make_traded_gas_plots <- function(
     return(base)
   }
   
-  # 颜色（保持即可）
   pal_group <- c(
     "Australia" = "#222222",
     "Middle East" = "#F3C300",
@@ -1049,15 +1004,12 @@ make_traded_gas_plots <- function(
     "Other low-methane producers"  = "#C7C7C7"
   )
   
-  # 仅保留：facet 6年设置（与原等价；本段不直接绘 facet）
   yrs_keep_6 <- c("2021","2025","2030","2035","2050","2060")
   yrs_use_6  <- intersect(yrs_keep_6, names(df_all))
   
-  # ===== 依赖上游的全局设置；如缺失才兜底（只在缺失时生效） =====
   if (!exists("yrs_keep"))  yrs_keep  <- c("2021","2025","2035","2060")
   if (!exists("yrs_use"))   yrs_use   <- yrs_keep
   
-  # ================= 工具函数：与 Russia 风格一致（不改结果） =================
   .to_num <- function(x) suppressWarnings(as.numeric(x))
   
   compute_centers <- function(yrs_keep, year_gap = 0.35) {
@@ -1089,9 +1041,9 @@ make_traded_gas_plots <- function(
     )
   }
   
-  # 通用：生成某个国家/地区的单画布 LNG 图（与原视觉完全一致）
+
   make_traded_lng_single <- function(target_region, plot_title, outfile_png) {
-    # 1) 数据整理：按分组汇总
+
     plot_df_lng_grouped <- df_all %>%
       dplyr::filter(
         Variable == "traded gas by tech",
@@ -1105,12 +1057,11 @@ make_traded_gas_plots <- function(
         Source = factor(Source, levels = scen_levels),
         value  = .to_num(value),
         group  = factor(vapply(technology, group_lng_source, FUN.VALUE = character(1)),
-                        levels = stack_order)  # ✅ 堆叠顺序
+                        levels = stack_order)  
       ) %>%
       dplyr::group_by(Source, year, group) %>%
       dplyr::summarise(value = sum(value, na.rm = TRUE), .groups = "drop")
     
-    # 2) 布局（eps/year_gap 与原值一致）
     eps      <- 0.06
     year_gap <- 0.35
     centers2 <- compute_centers(yrs_keep, year_gap)
@@ -1121,7 +1072,6 @@ make_traded_gas_plots <- function(
     
     pos <- add_x_positions(plot_df_lng_grouped2, yrs_keep, scen_levels, eps, centers2)
     
-    # 3) 绘图（与原主题/尺寸/参数一致）
     p <- ggplot2::ggplot(
       pos$df2, ggplot2::aes(x = x, y = value, fill = group)
     ) +
@@ -1154,7 +1104,6 @@ make_traded_gas_plots <- function(
     )
   }
   
-  # ===================== 生成两张图（文件名与原完全一致） =====================
   make_traded_lng_single(
     target_region = "Japan",
     plot_title    = "Traded LNG – Japan",
@@ -1172,12 +1121,9 @@ make_traded_gas_plots <- function(
   ################### Traded LNG - Europe  (slide 8) #########################
   ############################################################################
   
-  # ---------- 情景顺序（保持与原完全一致；若已有 scen_labs 则沿用） ----------
-  # ===== 强制情景顺序固定（覆盖上游设置） =====
   scen_levels <- c("NetZero_default", "NetZero_core", "NetZero_CH4_CN", "NetZero_CH4_group")
   scen_labs   <- scen_levels
   
-  # ---------- 基础与兼容 ----------
   europe_parts <- c("EU-12","EU-15","Europe_Non_EU","European Free Trade Association","EFTA")
   
   if (!exists("output_dir")) {
@@ -1191,7 +1137,7 @@ make_traded_gas_plots <- function(
   }
   if (!exists("yrs_use"))  yrs_use  <- intersect(yrs_keep, names(df_all))
   
-  # ---------- LNG 分组与配色（保持与原一致） ----------
+  # ---------- grouping ----------
   stack_order_lng <- c(stack_order <- c("Australia",
                                           "Middle East",
                                           "Other low-methane producers",
@@ -1205,7 +1151,6 @@ make_traded_gas_plots <- function(
     "Other low-methane producers"  = "#C7C7C7"
   )
   
-  # ================= Helpers（仅精简复用；不改变行为） =================
   .to_num <- function(x) suppressWarnings(as.numeric(x))
   
   normalize_name <- function(x) {
@@ -1295,13 +1240,12 @@ make_traded_gas_plots <- function(
       )
   }
   
-  # ========== 布局参数（与原值一致） ==========
   eps       <- 0.06
   year_gap  <- 0.35
   centers   <- compute_centers(yrs_keep, year_gap)
   sec_ticks <- as.numeric(centers)
   
-  # =========================== A. LNG（Europe 汇总，drop 欧洲来源） ===========================
+  # =========================== A LNG ===========================
   plot_df_lng_grouped_eu <- df_all %>%
     dplyr::filter(
       Variable == "traded gas by tech",
@@ -1360,7 +1304,6 @@ make_traded_gas_plots <- function(
     ggplot2::coord_cartesian(clip = "off")
   
   
-  # 返回所有创建的 ggplot 对象
   invisible(list(nest = p1, 
                  traded_pipe = p_pipe, 
                  rus_exported_lng = p_rus_lng, 
