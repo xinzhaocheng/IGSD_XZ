@@ -320,6 +320,72 @@ scen_labs <- setNames(
 
 source(file.path("src", dir_src, "traded_gas_plots.R"))
 
+setwd("D:/IGSD")
+
+# Load libraries and settings
+library(tidyverse)
+library(ggplot2)
+
+# Make the date label for use in output file name
+date_label <- format(Sys.Date(), "%Y%m%d")
+date_label <- gsub("^20", "", date_label)
+version_letter <- ""
+
+# set address manually
+dir_src      <- "To_xinzhao"     # src/<dir_src>/traded_gas_plots.R
+project_name <- "To_xinzhao"
+
+# Define working directories
+# Remove existing directories if they exist
+# You can change the names of these directories as needed
+dir_output  <- file.path("output",  paste0(project_name, "_output"),  "/")
+dir_data    <- file.path("data",    paste0(project_name, "_data"),    "/")
+dir_runs    <- file.path("runs",    paste0(project_name, "_runs"),    "/")
+dir_figures <- file.path("figures", paste0(project_name, "_figures"), "/")
+
+dir.create(dir_output,  showWarnings = FALSE, recursive = TRUE)
+dir.create(dir_data,    showWarnings = FALSE, recursive = TRUE)
+dir.create(dir_runs,    showWarnings = FALSE, recursive = TRUE)
+dir.create(dir_figures, showWarnings = FALSE, recursive = TRUE)
+
+## Make IMAC plots (https://docs.google.com/presentation/d/1ZHOh4nqpWO2LAGsO8uB0l0sbBHiVdflv/edit?slide=id.p1#slide=id.p1)
+
+# Identify all queryout_*_IAMC.csv files in the runs directory
+files <- list.files(
+  path       = dir_scenarios,
+  pattern    = "^queryout_.*_IAMC\\.csv$",
+  full.names = TRUE
+)
+
+# Scenario labels for each input file
+scen_labs <- setNames(
+  dplyr::case_when(
+    grepl("queryout_NEU_key-addon_test1028_IAMC\\.csv$", basename(files))       ~ "NetZero_default",
+    grepl("queryout_RUS_NEU_1029_IAMC\\.csv$",          basename(files))       ~ "NetZero_core",
+    grepl("queryout_RUS_NEU_CHN_1103_IAMC\\.csv$",      basename(files))       ~ "NetZero_CH4_CN",
+    grepl("queryout_NetZero_CH4_group_1107_IAMC\\.csv$", basename(files))      ~ "NetZero_CH4_group",
+    TRUE                                                                      ~ "Unknown"
+  ),
+  files
+)
+
+# Years to include in plots
+yrs_keep <- c("2021","2025","2030","2035","2050","2060")
+
+# Variables/technologies of interest
+var_need  <- "CH4 emissions by tech (excluding resource production)"
+tech_need <- c("imported LNG", "imported PAC pipeline gas", "imported RUS pipeline gas")
+
+# Source plot function and run
+source(file.path("src", dir_src, "traded_gas_plots.R"))
+
+traded_plots <- make_traded_gas_plots(
+  gas_trade_files = files,
+  output_dir      = dir_figures,
+  yrs_keep        = yrs_keep,
+  scen_labs       = scen_labs
+)
+
 
 ## Make energy mix and line plots ------------
 
