@@ -360,7 +360,6 @@ traded_plots <- make_traded_gas_plots(
   scen_labs       = scen_labs
 )
 
-
 ## Make NG supply and NG comsumption plots
 source(file.path("src", "dir_src", "NG_supply_consumption.R"))
 
