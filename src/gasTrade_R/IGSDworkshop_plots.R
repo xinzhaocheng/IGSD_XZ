@@ -118,15 +118,6 @@ color_palette_3 <- c("#06458C",
 # 2. Processing functions
 # ----------------------------------------------------------------------------
 
-#----------------------------------------
-# Script Name: Data Processing Functions
-# Summary:
-# output
-# Script Options:
-
-# ------------------------------------------------------------------------------
-
-
 # Data Processing Functions
 
 # Scope 3 emissions
@@ -300,12 +291,6 @@ fix_2021_neg <- function(data_in){
 # ----------------------------------------------------------------------------
 # 3. Database processing
 # ----------------------------------------------------------------------------
-
-#----------------------------------------
-# Script Name: Database Queries and Data Processing
-# Summary:
-# output
-# Script Options:
 
 # ------------------------------------------------------------------------------
 # 0. User Input Script Options -------------------------------------------------
@@ -698,9 +683,6 @@ ggplot(df_ng, aes(x = year, y = value, color = scenario))+
 
 ggsave(paste0(plot_folder, "Scope123 NG Methane China.png"),
        width = 6, height = 3, units = 'in')
-
-
-
 
 
 
